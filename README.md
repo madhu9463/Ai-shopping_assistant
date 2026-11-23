@@ -1,21 +1,27 @@
-# E-commerce RAG Shopping Assistant with Hybrid Retrieval & RAGAS Evaluation
+# 🛒 E-commerce RAG Shopping Assistant — Local & Free
 
-[![Live Demo](https://img.shields.io/badge/Live_Demo-HuggingFace_Spaces-blue?logo=huggingface)](https://huggingface.co/spaces/duytanjr/ecommerce-shopping-assistant)
+**Hybrid Retrieval (FAISS + BM25 + RRF) | Cross-Encoder Reranking | Ollama | Streamlit**
 
-An end-to-end **Retrieval-Augmented Generation (RAG)** system built with **LangChain** for intelligent product search and recommendation in an e-commerce setting. The system combines **Hybrid Retrieval** (FAISS + BM25 + RRF) with a **Cross-Encoder Reranker** to maximize retrieval quality, and uses **Gemini** as the final answer generator. A full automated **RAGAS evaluation pipeline** is included to quantitatively measure system performance.
+An intelligent AI-powered shopping assistant built using **Python, LangChain, FAISS, BM25, Hugging Face, and Ollama**.
+
+The system understands natural-language shopping queries, retrieves relevant products from a local product catalog, reranks the results, and generates grounded recommendations using a locally running Llama 3.2 model.
+
+**GitHub Repository:** [Rag-Pipeline-](https://github.com/aaditya246/Rag-Pipeline-)
+
+The main shopping assistant runs locally without a paid Gemini API, Google Cloud billing, or an external vector database.
 
 ---
 
 ## ✨ Key Features
 
-- **Hybrid Retrieval** — Combines dense vector search (FAISS) and keyword search (BM25) via Reciprocal Rank Fusion (RRF) for superior recall over single-method approaches.
-- **Cross-Encoder Reranking** — A `ms-marco-MiniLM-L-6-v2` Cross-Encoder reranks the fused candidates to surface the most relevant products before generation.
-- **Multilingual Embeddings** — Uses `paraphrase-multilingual-MiniLM-L12-v2` to handle queries in multiple languages accurately.
-- **Gemini Integration** — Calls `gemini-2.5-flash` via the Google Generative AI API for high-quality, grounded recommendations.
-- **Automated Evaluation (RAGAS)** — Includes scripts to auto-generate a testset and evaluate the full pipeline on 4 standard RAG metrics using an LLM-as-Judge approach.
-- **Interactive Web UI** — A Streamlit chat interface with session history for real-time Q&A.
-- **LangChain Framework** — Built entirely on LangChain for standardized, production-ready chain orchestration.
-- **Modular Architecture** — Clean separation between offline indexing and online querying.
+- **Hybrid Retrieval:** Combines semantic vector search (FAISS) and keyword-based search (BM25).
+- **Reciprocal Rank Fusion:** Merges and ranks results from both retrieval methods.
+- **Cross-Encoder Reranking:** Uses `cross-encoder/ms-marco-MiniLM-L-6-v2` to identify the three most relevant products.
+- **Multilingual Embeddings:** Uses `paraphrase-multilingual-MiniLM-L12-v2` for multilingual semantic retrieval.
+- **Local AI Generation:** Uses Llama 3.2 3B through Ollama to generate product recommendations.
+- **Context-Grounded Responses:** Instructs the LLM to use only retrieved product information.
+- **Streamlit Interface:** Provides an interactive web-based shopping assistant.
+- **Modular Architecture:** Separates offline indexing, retrieval, generation, and evaluation.
 
 ---
 
@@ -23,90 +29,86 @@ An end-to-end **Retrieval-Augmented Generation (RAG)** system built with **LangC
 
 ```mermaid
 flowchart TD
-    subgraph OFFLINE ["⚙️ Offline Indexing (build_index.py)"]
-        A[rag_dataset.csv] --> B[Document Builder]
-        B --> C[SentenceTransformer Encoder]
-        B --> D[BM25 Tokenizer]
-        C --> E[(product_index.faiss)]
-        D --> F[(bm25_model.pkl)]
-        B --> G[(documents.pkl)]
-    end
+    A[Product Dataset CSV] --> B[LangChain Documents]
+    B --> C[Hugging Face Embeddings]
+    B --> D[BM25 Index]
+    C --> E[(FAISS Vector Store)]
+    D --> F[(BM25 Retriever)]
 
-    subgraph ONLINE ["🌐 Online Querying (app.py + rag_pipeline.py)"]
-        H[User Query] --> I[SentenceTransformer Encoder]
-        I --> J[FAISS Vector Search\nTop-30 candidates]
-        H --> K[BM25 Keyword Search\nTop-30 candidates]
-        J --> L[Reciprocal Rank Fusion\nRRF Top-15]
-        K --> L
-        L --> M[Cross-Encoder Reranker\nTop-3 final]
-        M --> N[Prompt Builder]
-        H --> N
-        N --> O[Gemini 2.5 Flash]
-        O --> P[Answer]
-    end
-
-    subgraph EVAL ["📊 Evaluation Pipeline"]
-        Q[generate_testset.py\nRAGAS TestsetGenerator] --> R[(ragas_testset.csv)]
-        R --> S[evaluate_rag.py\nRAGAS Metrics]
-        S --> T[(evaluation_results.csv)]
-    end
-
-    E --> J
-    F --> K
-    G --> M
+    Q[User Shopping Query] --> G[Hybrid Retrieval]
+    E --> G
+    F --> G
+    G --> H[Weighted RRF Fusion]
+    H --> I[Cross-Encoder Reranking]
+    I --> J[Top 3 Products]
+    J --> K[Context-Grounded Prompt]
+    Q --> K
+    K --> L[Ollama Llama 3.2]
+    L --> M[Shopping Recommendations]
+    M --> N[Streamlit UI]
 ```
+
+### How the system works
+
+1. **Data indexing:** Product records are converted into LangChain Documents and stored in local FAISS and BM25 indexes.
+2. **Query processing:** A customer submits a shopping request.
+3. **Hybrid retrieval:** FAISS retrieves semantically similar products, while BM25 finds keyword matches.
+4. **Rank fusion:** Weighted RRF combines both ranked result sets.
+5. **Reranking:** The Cross-Encoder selects the top three most relevant products.
+6. **Answer generation:** Ollama receives the retrieved product descriptions and generates recommendations.
+7. **Response:** The customer receives product suggestions with descriptions, materials, prices, and reasons for recommendation when those details are available.
 
 ---
 
-## 📊 Evaluation Results (RAGAS)
+## 🛠️ Technology Stack
 
-The pipeline was evaluated on 15 auto-generated test questions using the [RAGAS](https://github.com/explodinggradients/ragas) framework with `gemini-2.5-flash` as the LLM Judge.
-
-| Metric | Score | Description |
-|---|---|---|
-| **Context Precision** | 0.8533 | Are the retrieved documents actually relevant to the question? |
-| **Context Recall** | 0.7867 | Do the retrieved documents cover all necessary information? |
-| **Faithfulness** | 0.9200 | Does the answer stay grounded in the retrieved context (no hallucination)? |
-| **Answer Relevancy** | 0.8733 | Does the answer directly address the user's question? |
-
-> Testset and evaluation scripts are located in `generate_testset.py` and `evaluate_rag.py`. The generated testset is saved at `data/ragas_testset.csv`.
+| Layer | Technology |
+|---|---|
+| Frontend | Streamlit |
+| Programming Language | Python |
+| AI Framework | LangChain |
+| Embedding Model | Hugging Face MiniLM |
+| Vector Search | FAISS |
+| Keyword Search | BM25 |
+| Fusion Strategy | Reciprocal Rank Fusion |
+| Reranking | Cross-Encoder MiniLM |
+| Large Language Model | Llama 3.2 3B |
+| Local LLM Runtime | Ollama |
+| Product Data | CSV, Pandas |
+| Evaluation | RAGAS (optional, legacy Gemini scripts) |
 
 ---
 
 ## 📁 Project Structure
 
 ```text
-Naive_RAG/
-├── app.py                     # Streamlit web app (main entrypoint)
-├── build_index.py             # Offline indexing: builds FAISS and BM25 artifacts via LangChain
-├── rag_pipeline.py            # Core LangChain pipeline: retriever chain, prompt, generation
-├── generate_testset.py        # Auto-generates evaluation testset using RAGAS TestsetGenerator
-├── evaluate_rag.py            # Runs RAGAS evaluation on the full pipeline
-├── requirements.txt           # Python dependencies
-├── .env                       # Environment variables (not committed)
+Rag-Pipeline-/
+├── app.py
+├── build_index.py
+├── rag_pipeline.py
+├── generate_testset.py
+├── evaluate_rag.py
+├── requirements.txt
+├── .gitignore
 └── data/
-    ├── rag_dataset.csv        # Source product catalog dataset
-    ├── faiss_store/           # LangChain FAISS vector store (index + docstore)
-    ├── bm25_retriever.pkl     # Serialized LangChain BM25Retriever
-    └── ragas_testset.csv      # Auto-generated evaluation testset (15 questions)
+    ├── rag_dataset.csv
+    ├── faiss_store/
+    ├── bm25_retriever.pkl
+    ├── ragas_testset.csv
+    └── evaluation_results.csv
 ```
 
----
+The index files and evaluation results are generated when their respective scripts run.
 
-## 🛠️ Tech Stack
+### Important files
 
-| Layer | Technology |
-|---|---|
-| **Framework** | LangChain (Chains, Retrievers, Prompt Templates) |
-| **Web UI** | Streamlit |
-| **Embedding Model** | `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2` via `langchain-huggingface` |
-| **Vector Store** | FAISS via `langchain-community` |
-| **Keyword Search** | BM25Retriever via `langchain-community` |
-| **Fusion Strategy** | EnsembleRetriever (Reciprocal Rank Fusion) |
-| **Reranker** | CrossEncoderReranker (`cross-encoder/ms-marco-MiniLM-L-6-v2`) |
-| **LLM** | Google Gemini 2.5 Flash via `langchain-google-genai` |
-| **Evaluation** | RAGAS v0.2.x |
-| **Environment** | python-dotenv |
+- `app.py`: Streamlit user interface.
+- `build_index.py`: Creates FAISS and BM25 indexes.
+- `rag_pipeline.py`: Implements hybrid retrieval, RRF, reranking, prompt construction, and Ollama generation.
+- `generate_testset.py`: Generates evaluation questions using the original Gemini-backed RAGAS workflow.
+- `evaluate_rag.py`: Calculates RAGAS evaluation metrics using the original Gemini-backed evaluator.
+- `requirements.txt`: Python dependency list.
+- `data/rag_dataset.csv`: Product catalog.
 
 ---
 
@@ -115,89 +117,175 @@ Naive_RAG/
 ### 1. Clone the repository
 
 ```bash
-git clone <your-repo-url>
-cd Naive_RAG
+git clone https://github.com/aaditya246/Rag-Pipeline-.git
+cd Rag-Pipeline-
 ```
 
-### 2. Create and activate a virtual environment
+### 2. Create a virtual environment
 
-```bash
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+On Windows PowerShell:
+
+```powershell
+py -3.11 -m venv venv
+.\venv\Scripts\Activate.ps1
+```
+
+If PowerShell blocks activation:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\venv\Scripts\Activate.ps1
 ```
 
 ### 3. Install dependencies
 
-```bash
-pip install -r requirements.txt
+Install the local shopping assistant dependencies:
+
+```powershell
+python -m pip install --upgrade pip
+python -m pip install streamlit pandas python-dotenv langchain-core langchain-community langchain-huggingface langchain-ollama sentence-transformers faiss-cpu rank-bm25
 ```
 
-### 4. Configure environment variables
+The original `requirements.txt` may contain additional Gemini and RAGAS dependencies. Review package compatibility before using it to reinstall everything.
 
-Create a `.env` file in the project root:
+### 4. Install Ollama
 
-```env
-GEMINI_API_KEY=your_gemini_api_key_here
+Download Ollama from:
+
+https://ollama.com/download/windows
+
+Verify installation:
+
+```powershell
+ollama --version
 ```
 
-> Get your free API key at [Google AI Studio](https://aistudio.google.com/apikey).
+Download the local language model:
 
-### 5. Build the retrieval index
-
-```bash
-python3 build_index.py
+```powershell
+ollama pull llama3.2:3b
 ```
 
-This generates:
-- `data/product_index.faiss` — FAISS vector index
-- `data/documents.pkl` — serialized document list
-- `data/bm25_model.pkl` — BM25 keyword index
+Check downloaded models:
 
-### 6. Launch the web app
+```powershell
+ollama list
+```
 
-```bash
+### 5. Build the vector indexes
+
+```powershell
+python build_index.py
+```
+
+This creates the local FAISS vector store and BM25 keyword index.
+
+### 6. Run the RAG backend
+
+```powershell
+python rag_pipeline.py
+```
+
+Example input:
+
+```text
+Suggest a comfortable cotton shirt for summer under $50
+```
+
+The application retrieves relevant products and asks the local Ollama model to generate recommendations.
+
+### 7. Launch the Streamlit application
+
+```powershell
 streamlit run app.py
 ```
 
-Open the local URL shown in the terminal (typically `http://localhost:8501`).
+Open the URL displayed in your terminal, normally:
 
----
-
-## 🧪 Running the Evaluation Pipeline
-
-### Step 1 — Generate the testset
-
-```bash
-python3 generate_testset.py
-```
-
-Uses RAGAS `TestsetGenerator` with Gemini to auto-generate 15 diverse test questions from the product catalog. Output: `data/ragas_testset.csv`.
-
-### Step 2 — Evaluate the pipeline
-
-```bash
-python3 evaluate_rag.py
-```
-
-Runs the full RAG pipeline on each test question, then scores the results using RAGAS metrics (Context Precision, Context Recall, Faithfulness, Answer Relevancy). Output: `data/evaluation_results.csv`.
+http://localhost:8501
 
 ---
 
 ## 💬 Example Queries
 
-Try these in the Streamlit chat interface:
+Try these shopping queries:
 
-- `Recommend a blue cotton shirt for summer`
-- `What are some affordable jeans under $50?`
-- `Do you have any wool sweaters from SaigonStyle?`
-- `Find me a beige dress, lightweight and breathable`
+- Recommend a blue cotton shirt for summer.
+- Find affordable jeans under $50.
+- Suggest a lightweight, breathable dress.
+- Show me warm clothes suitable for winter.
+- Recommend comfortable casual clothing for daily use.
 
-The system retrieves relevant products using Hybrid Search + Reranking and generates a grounded recommendation via Gemini.
+Product availability and recommendations depend on the data in `rag_dataset.csv`.
 
 ---
 
-## 📝 Notes
+## 📊 RAGAS Evaluation
 
-- If retrieval artifacts are missing or you update the dataset, rerun `build_index.py`.
-- The evaluation pipeline requires a Gemini API key with sufficient quota (the RAGAS LLM Judge makes multiple API calls per question).
-- The `.env` file is excluded from version control via `.gitignore`.
+The repository includes two optional evaluation scripts:
+
+**`generate_testset.py`**
+
+Generates test questions based on the product catalog.
+
+**`evaluate_rag.py`**
+
+Evaluates the RAG pipeline using four metrics:
+
+| Metric | Description |
+|---|---|
+| Context Precision | Measures how relevant the retrieved documents are. |
+| Context Recall | Measures whether the retrieved context covers the required information. |
+| Faithfulness | Measures whether generated answers are supported by retrieved context. |
+| Answer Relevancy | Measures how well answers address user questions. |
+
+### Current evaluation status
+
+These scripts still use Gemini for testset generation or evaluation. They require appropriate API credentials and compatible RAGAS dependencies.
+
+The main Ollama-based shopping assistant does **not** require these scripts to operate.
+
+The RAGAS scores published by the original project should not be treated as verified scores for this modified local implementation.
+
+---
+
+## 🔧 Troubleshooting
+
+| Issue | Solution |
+|---|---|
+| Ollama not recognized | Install Ollama and restart PowerShell. |
+| Model not available | Run `ollama pull llama3.2:3b`. |
+| Ollama connection refused | Start Ollama or run `ollama serve`. |
+| FAISS index missing | Run `python build_index.py`. |
+| BM25 index missing | Run `python build_index.py`. |
+| LangChain import error | Check installed package versions. |
+| Hugging Face download warning | Public model downloads may work without authentication. |
+| Google credentials error | Check whether the script still uses Gemini or Google Cloud. |
+| Vietnamese interface text | Replace the interface strings inside `app.py`. |
+
+---
+
+## 🔐 Security
+
+- Never commit credentials or `.env` files containing secrets.
+- Only load FAISS and BM25 pickle artifacts from trusted sources.
+- Local LLM inference does not require sending shopping queries to a paid cloud inference API.
+- Internet access is required initially to download Python dependencies and models.
+
+---
+
+## 🔮 Future Improvements
+
+- Fully local RAGAS evaluation using Ollama.
+- Reliable price and category filtering.
+- Improved conversational follow-up handling.
+- Product comparison and filtering.
+- Deployment of the frontend and an accessible model-serving backend.
+
+---
+
+## 📌 Conclusion
+
+This project demonstrates an end-to-end **hybrid Retrieval-Augmented Generation system** for intelligent product recommendations.
+
+It combines FAISS semantic retrieval, BM25 keyword search, Reciprocal Rank Fusion, Cross-Encoder reranking, and a local Ollama language model to provide catalog-grounded shopping assistance without requiring a paid LLM API for the main application.
